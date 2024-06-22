@@ -1,0 +1,9 @@
+.git
+.idea
+Dockerfile
+DockerRun.txt
+
+build.sh
+
+venv/
+.venv/

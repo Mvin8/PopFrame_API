@@ -1,6 +1,4 @@
-# main.py
-
-from fastapi import FastAPI, HTTPException, APIRouter
+from fastapi import FastAPI, HTTPException, APIRouter, Depends, Query
 from typing import Any, Dict, List, Optional
 import json
 import geopandas as gpd
@@ -14,6 +12,8 @@ from app.models.models import (
     GeoJSONRequest, CriteriaRequest, EvaluateTerritoryLocationResult,
     PopulationCriterionResult, CalculatePotentialResult, BuildNetworkResult
 )
+
+from app.utils.data_loader import get_region, load_geodata, get_available_regions
 
 app = FastAPI(
     title="PopFrame API",
@@ -31,35 +31,45 @@ population_router = APIRouter(prefix="/population", tags=["Population Criteria"]
 network_router = APIRouter(prefix="/network", tags=["Network Frame"])
 landuse_router = APIRouter(prefix="/landuse", tags=["Land Use Data"])
 
-# Load data
-region_model = Region.from_pickle('/Users/mvin/Code/PopFrame/examples/data/model_data/region_noter.pickle')
-gdf = gpd.read_parquet('/Users/mvin/Code/PopFrame/examples/data/model_data/mo_desteny_growth.parquet')
+# Dependency to get the region model
+def get_region_model(region_id: int = Query(47, description="Region ID")):
+    region_model = get_region(region_id)
+    if not isinstance(region_model, Region):
+        raise HTTPException(status_code=400, detail="Invalid region model")
+    return region_model
 
-if not isinstance(region_model, Region):
-    raise Exception("Invalid region model")
+# Dependency to get geodata
+def get_geodata(region_id: int = Query(47, description="Region ID")):
+    gdf = load_geodata(region_id)
+    return gdf
+
+# Endpoint to get available regions
+@app.get('/regions', tags=["Regions"])
+def regions() -> Dict[int, str]:
+    return get_available_regions()
 
 # Territory Evaluation Endpoints
 @territory_router.post("/evaluate_location", response_model=List[EvaluateTerritoryLocationResult])
-async def evaluate_territory_location_endpoint(request: GeoJSONRequest):
+async def evaluate_territory_location_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
-        result = evaluation.evaluate_territory_location(territories=request.dict())
+        result = evaluation.evaluate_territory_location(territories=request.model_dump())
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @territory_router.post("/population_criterion", response_model=List[PopulationCriterionResult])
-async def population_criterion_endpoint(request: GeoJSONRequest):
+async def population_criterion_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model), gdf = Depends(get_geodata)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
-        result = evaluation.population_criterion(gdf, territories=request.dict())
+        result = evaluation.population_criterion(gdf, territories=request.model_dump())
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 # Population Criteria Endpoints
 @population_router.post("/calculate_potential", response_model=List[CalculatePotentialResult])
-async def calculate_potential_endpoint(request: CriteriaRequest):
+async def calculate_potential_endpoint(request: CriteriaRequest, region_model: Region = Depends(get_region_model)):
     try:
         territories_criteria = {
             "Население": request.population,
@@ -83,7 +93,7 @@ async def calculate_potential_endpoint(request: CriteriaRequest):
 
 # Network Frame Endpoints
 @network_router.post("/build_network_frame", response_model=Dict[str, Any])
-async def build_network_endpoint():
+async def build_network_endpoint(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopFrame(region=region_model)
         G = frame_method.build_network_frame()
@@ -94,7 +104,7 @@ async def build_network_endpoint():
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 @network_router.post("/build_square_frame", response_model=Dict[str, Any])
-async def build_square_frame_endpoint():
+async def build_square_frame_endpoint(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopFrame(region=region_model)
         gdf_frame = frame_method.build_square_frame(output_type='gdf')
@@ -104,10 +114,10 @@ async def build_square_frame_endpoint():
 
 # Land Use Data Endpoints
 @landuse_router.post("/get_landuse_data", response_model=Dict[str, Any])
-async def get_landuse_data_endpoint(request: GeoJSONRequest):
+async def get_landuse_data_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model)):
     try:
         urbanisation = UrbanisationLevel(region=region_model)
-        landuse_data = urbanisation.get_landuse_data(territories=request.dict())
+        landuse_data = urbanisation.get_landuse_data(territories=request.model_dump())
         return json.loads(landuse_data.to_json())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

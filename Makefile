@@ -1,4 +1,4 @@
-SOURCE_DIR = popframe
+SOURCE_DIR = app
 
 lint:
 	pylint ${SOURCE_DIR}
@@ -8,28 +8,10 @@ format:
 	black ${SOURCE_DIR}
 
 install:
-	pip install .
+	pip install -r requirements.txt
 
 venv: #then source .venv/bin/activate
 	python3 -m venv .venv
 
-install-dev:
-	pip install -e '.[dev]'
-
-build:
-	python3 -m build .
-
-clean:
-	rm -rf ./build ./dist ./popframe.egg-info
-
-update-pypi: clean build
-	python3 -m twine upload dist/*
-
-update-test-pypi: clean build
-	python3 -m twine upload --repository testpypi dist/*
-
-test:
-	pytest tests
-
-test-cov:
-	pytest tests --cov
+compose-dev:
+	docker compose -f "docker-compose.dev.yml" up --build
