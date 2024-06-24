@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, APIRouter, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Dict, List, Optional
 import json
 import geopandas as gpd
@@ -23,6 +24,15 @@ app = FastAPI(
         "name": "Maksim Natykin",
         "email": "mvin@itmo.ru",
     },
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Список доменов, с которых разрешены запросы. "*" позволяет все домены.
+    allow_credentials=True,
+    allow_methods=["*"],  # Список разрешенных методов (GET, POST и т.д.). "*" позволяет все методы.
+    allow_headers=["*"],  # Список разрешенных заголовков. "*" позволяет все заголовки.
 )
 
 # Create routers
