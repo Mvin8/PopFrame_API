@@ -3,8 +3,6 @@ from typing import Any, Dict, List, Optional
 
 class GeoJSONRequest(BaseModel):
     type: str
-    name: str
-    crs: dict
     features: list
 
 class CriteriaRequest(BaseModel):
@@ -23,7 +21,7 @@ class EvaluateTerritoryLocationResult(BaseModel):
     closest_settlement2: Optional[str]
 
 class PopulationCriterionResult(BaseModel):
-    project: str
+    project: Optional[str]
     average_population_density: float
     average_population_growth: float
     score: int

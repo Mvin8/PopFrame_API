@@ -102,7 +102,7 @@ async def calculate_potential_endpoint(request: CriteriaRequest, region_model: R
         raise HTTPException(status_code=400, detail=str(e))
 
 # Network Frame Endpoints
-@network_router.post("/build_network_frame", response_model=Dict[str, Any])
+@network_router.get("/build_network_frame", response_model=Dict[str, Any])
 async def build_network_endpoint(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopFrame(region=region_model)
@@ -113,7 +113,7 @@ async def build_network_endpoint(region_model: Region = Depends(get_region_model
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
-@network_router.post("/build_square_frame", response_model=Dict[str, Any])
+@network_router.get("/build_square_frame", response_model=Dict[str, Any])
 async def build_square_frame_endpoint(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopFrame(region=region_model)
