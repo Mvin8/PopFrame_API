@@ -29,10 +29,10 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Список доменов, с которых разрешены запросы. "*" позволяет все домены.
+    allow_origins=["*"],  
     allow_credentials=True,
-    allow_methods=["*"],  # Список разрешенных методов (GET, POST и т.д.). "*" позволяет все методы.
-    allow_headers=["*"],  # Список разрешенных заголовков. "*" позволяет все заголовки.
+    allow_methods=["*"],  
+    allow_headers=["*"],  
 )
 
 # Create routers
@@ -42,14 +42,14 @@ network_router = APIRouter(prefix="/network", tags=["Network Frame"])
 landuse_router = APIRouter(prefix="/landuse", tags=["Land Use Data"])
 
 # Dependency to get the region model
-def get_region_model(region_id: int = Query(47, description="Region ID")):
+def get_region_model(region_id: int = Query(1, description="Region ID")):
     region_model = get_region(region_id)
     if not isinstance(region_model, Region):
         raise HTTPException(status_code=400, detail="Invalid region model")
     return region_model
 
 # Dependency to get geodata
-def get_geodata(region_id: int = Query(47, description="Region ID")):
+def get_geodata(region_id: int = Query(1, description="Region ID")):
     gdf = load_geodata(region_id)
     return gdf
 
