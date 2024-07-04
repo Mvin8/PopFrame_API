@@ -10,7 +10,7 @@ from popframe.models.region import Region
 from popframe.method.popuation_frame import PopFrame
 
 from app.models.models import (
-    GeoJSONRequest, CriteriaRequest, EvaluateTerritoryLocationResult,
+    Request, CriteriaRequest, EvaluateTerritoryLocationResult,
     PopulationCriterionResult, CalculatePotentialResult, BuildNetworkResult
 )
 
@@ -60,7 +60,7 @@ def regions() -> Dict[int, str]:
 
 # Territory Evaluation Endpoints
 @territory_router.post("/evaluate_location", response_model=List[EvaluateTerritoryLocationResult])
-async def evaluate_territory_location_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model)):
+async def evaluate_territory_location_endpoint(request: Request, region_model: Region = Depends(get_region_model)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
         result = evaluation.evaluate_territory_location(territories=request.model_dump())
@@ -69,7 +69,7 @@ async def evaluate_territory_location_endpoint(request: GeoJSONRequest, region_m
         raise HTTPException(status_code=400, detail=str(e))
 
 @territory_router.post("/population_criterion", response_model=List[PopulationCriterionResult])
-async def population_criterion_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model), gdf = Depends(get_geodata)):
+async def population_criterion_endpoint(request: Request, region_model: Region = Depends(get_region_model), gdf = Depends(get_geodata)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
         result = evaluation.population_criterion(gdf, territories=request.model_dump())
@@ -124,7 +124,7 @@ async def build_square_frame_endpoint(region_model: Region = Depends(get_region_
 
 # Land Use Data Endpoints
 @landuse_router.post("/get_landuse_data", response_model=Dict[str, Any])
-async def get_landuse_data_endpoint(request: GeoJSONRequest, region_model: Region = Depends(get_region_model)):
+async def get_landuse_data_endpoint(request: Request, region_model: Region = Depends(get_region_model)):
     try:
         urbanisation = UrbanisationLevel(region=region_model)
         landuse_data = urbanisation.get_landuse_data(territories=request.model_dump())

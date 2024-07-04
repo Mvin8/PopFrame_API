@@ -1,33 +1,12 @@
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List, Optional, Union
+from pydantic_geojson import PolygonModel, MultiPolygonModel
 from pydantic import BaseModel, Field
 
-class GeoJSONRequest(BaseModel):
-    type: str = Field(..., example="FeatureCollection")
-    features: list = Field(
-        ...,
-        example=[
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "coordinates": [
-                        [
-                            [29.982879431084967, 59.363554752593245],
-                            [29.982879431084967, 59.322083801173534],
-                            [30.109075699649765, 59.322083801173534],
-                            [30.109075699649765, 59.363554752593245],
-                            [29.982879431084967, 59.363554752593245],
-                        ]
-                    ],
-                    "type": "Polygon"
-                }
-            }
-        ]
-    )
+class Request(BaseModel):
+    type: str = Field(..., example="Polygon")
+    geometry: Union[PolygonModel, MultiPolygonModel]
 
-    
 class CriteriaRequest(BaseModel):
     population: int
     transport: int
