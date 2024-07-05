@@ -80,10 +80,17 @@ async def evaluate_territory_location_endpoint(polygon : PolygonModel, region_mo
         raise HTTPException(status_code=400, detail=str(e))
 
 @territory_router.post("/population_criterion", response_model=List[PopulationCriterionResult])
-async def population_criterion_endpoint(request: Request, region_model: Region = Depends(get_region_model), gdf = Depends(get_geodata)):
+async def population_criterion_endpoint(polygon : PolygonModel, region_model: Region = Depends(get_region_model), gdf = Depends(get_geodata)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
-        result = evaluation.population_criterion(gdf, territories=request.model_dump())
+        polygon_feature = {
+        'type': 'Feature',
+        'geometry' : polygon.model_dump(),
+        'properties': {}
+        }
+        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
+        polygon_gdf = polygon_gdf.to_crs(region_model.crs)
+        result = evaluation.population_criterion(gdf, territories=polygon_gdf)
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
