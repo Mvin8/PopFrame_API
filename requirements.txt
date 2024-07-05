@@ -1,4 +1,4 @@
-popframe==0.0.7
+popframe==0.0.8
 fastapi>=0.111.0,<0.113.0
 pydantic>=2.0.0,<3.0.0
 pydantic-geojson==0.1.1
