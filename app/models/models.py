@@ -25,7 +25,7 @@ class EvaluateTerritoryLocationResult(BaseModel):
 class PopulationCriterionResult(BaseModel):
     project: Optional[str]
     average_population_density: float
-    average_population_growth: float
+    total_population: float
     score: int
 
 class CalculatePotentialResult(BaseModel):
