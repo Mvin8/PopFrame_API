@@ -3,9 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import router_territory
 from app.routers import router_population
 from app.routers import router_frame
+from app.routers import router_agglomeration
 from app.utils.data_loader import get_available_regions
 from app.utils import get_model
 from typing import Dict
+from loguru import logger
+import sys
+
+logger.remove()
+logger.add(
+    sys.stdout,
+    format="<green>{time:MM-DD HH:mm}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+    level="INFO",
+    colorize=True
+)
+
 
 app = FastAPI(
     title="PopFrame API",
@@ -40,13 +52,14 @@ def read_root():
 app.include_router(router_territory.territory_router)
 app.include_router(router_population.population_router)
 app.include_router(router_frame.network_router)
+app.include_router(router_agglomeration.agglomeration_router)
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-@app.on_event("startup")
-async def startup_event():
-    await get_model.process_models()
+# @app.on_event("startup")
+# async def startup_event():
+#     await get_model.process_models()
 
 

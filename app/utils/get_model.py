@@ -4,8 +4,8 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import pickle
+from loguru import logger
 
-from shapely.geometry import Point
 from app.utils.data_loader import REGIONS_DICT, DATA_PATH, REGIONS_CRS
 
 from popframe.preprocessing.level_filler import LevelFiller
@@ -80,32 +80,35 @@ def to_pickle(data, file_path: str) -> None:
 
 async def process_models():
     for region_id, region_name in REGIONS_DICT.items():
-        print(f"Load model for {region_name}...")
+        logger.info(f"Loading model for {region_name}...")
         model_exists, model_file = check_model_exists(region_id)
         if model_exists:
-            print(f"Model for {region_name} already exists")
-            continue 
-        print(f"Model for {region_name} not found. Creating...")
+            logger.info(f"Model for {region_name} already exists. Skipping.")
+            continue
+        logger.info(f"Model for {region_name} not found. Creating...")
         local_crs = REGIONS_CRS[region_id]
         try:
             region = await load_region_bounds(region_id)
+            logger.info(f"Region bounds loaded for {region_name}")
         except FileNotFoundError as e:
-            print(f"Error loading region bounds for {region_name}: {e}")
+            logger.error(f"Error loading region bounds for {region_name}: {e}")
             continue
         try:
             towns = await load_towns(region_id)
+            logger.info(f"Towns loaded for {region_name}")
         except FileNotFoundError as e:
-            print(f"Error loading towns for {region_name}: {e}")
+            logger.error(f"Error loading towns for {region_name}: {e}")
             continue
         try:
             adj_mx = await load_accessibility_matrix(region_id, 'drive')
+            logger.info(f"Accessibility matrix loaded for {region_name}")
         except FileNotFoundError as e:
-            print(f"Error loading accessibility matrix for {region_name}: {e}")
+            logger.error(f"Error loading accessibility matrix for {region_name}: {e}")
             continue
         try:
             model = await get_model(region, towns, adj_mx, region_id, local_crs)
             to_pickle(model, model_file)
+            logger.info(f"Model for {region_name} successfully created and saved.")
         except RuntimeError as e:
-            print(f"Error creating model for {region_name}: {e}")
+            logger.error(f"Error creating model for {region_name}: {e}")
             continue
-        print(f'Model for {region_name} has been successfully created')
