@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 from loguru import logger
 
-from app.utils.data_loader import REGIONS_DICT, DATA_PATH, REGIONS_CRS
+from app.utils.config import REGIONS_DICT, DATA_PATH, REGIONS_CRS
 
 from popframe.preprocessing.level_filler import LevelFiller
 from popframe.models.region import Region

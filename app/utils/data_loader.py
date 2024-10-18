@@ -1,32 +1,8 @@
 import os
-
+from app.utils.get_model import check_model_exists
 from popframe.models.region import Region
-
-REGIONS_DICT = {
-    1: 'Ленинградская область',
-    3138: 'Санкт-Петербург',
-    3268: 'Москва',
-    3427: 'Волгоградская область',
-    3902: 'Тульская область',
-    4013: 'Омская область',
-    4437: 'Краснодарский край',
-    4882: 'Тюменская область',
-    5188: 'Московская область',
-    }
-
-REGIONS_CRS = {
-    1: 32636,
-    3138: 32636,
-    3268: 32637,
-    3427: 32638,
-    3902: 32637,
-    4013: 32643,
-    4437: 32637,
-    4882: 32642,
-    5188: 32637,
-}
-
-DATA_PATH = os.path.abspath('app/data')
+from app.utils.config import REGIONS_DICT, DATA_PATH
+import os 
 
 def _get_region_data_path(region_id: int):
     region_name = REGIONS_DICT.get(region_id)
@@ -37,6 +13,11 @@ def _get_region_data_path(region_id: int):
 def get_region(region_id: int):
     return Region.from_pickle(_get_region_data_path(region_id))
 
-def get_available_regions():
-    return REGIONS_DICT
+def get_available_regions(): 
+    available_regions = {}
+    for region_id, region_name in REGIONS_DICT.items():
+        model_exists, _ = check_model_exists(region_id)
+        if model_exists:
+            available_regions[region_id] = region_name
+    return available_regions
 

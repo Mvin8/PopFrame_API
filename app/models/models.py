@@ -7,13 +7,6 @@ class Request(BaseModel):
     type: str = Field(..., example="Polygon")
     geometry: Union[PolygonModel, MultiPolygonModel]
 
-class CriteriaRequest(BaseModel):
-    population: int
-    transport: int
-    ecology: int
-    social_objects: int
-    engineering_infrastructure: int
-
 class EvaluateTerritoryLocationResult(BaseModel):
     territory: str
     score: int
@@ -27,10 +20,7 @@ class PopulationCriterionResult(BaseModel):
     average_population_density: float
     total_population: float
     score: int
-
-class CalculatePotentialResult(BaseModel):
-    category: str
-    scores: List[int]
+    interpretation : str
 
 class BuildNetworkResult(BaseModel):
     geojson: Dict[str, Any]

@@ -25,8 +25,8 @@ async def build_network_endpoint(region_model: Region = Depends(get_region_model
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
-@network_router.get("/build_square_frame", response_model=Dict[str, Any])
-async def build_square_frame_endpoint(region_model: Region = Depends(get_region_model)):
+@network_router.get("/build_circle_frame", response_model=Dict[str, Any])
+async def build_circle_frame_endpoint(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopulationFrame(region=region_model)
         gdf_frame = frame_method.build_circle_frame(output_type='gdf')
