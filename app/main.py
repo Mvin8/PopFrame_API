@@ -4,8 +4,7 @@ from app.routers import router_territory
 from app.routers import router_population
 from app.routers import router_frame
 from app.routers import router_agglomeration
-from app.utils.data_loader import get_available_regions
-from typing import Dict
+from app.routers import router_recalculate_model
 from loguru import logger
 import sys
 
@@ -37,17 +36,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Endpoint to get available regions
-@app.get('/regions', tags=["Regions"])
-def regions() -> Dict[int, str]:
-    return get_available_regions()
-
 # # Root endpoint
 # @app.get("/", response_model=Dict[str, str])
 # def read_root():
 #     return {"message": "Welcome to PopFrame Service"}
 
 # Include routers
+app.include_router(router_recalculate_model.region_router)
 app.include_router(router_territory.territory_router)
 app.include_router(router_population.population_router)
 app.include_router(router_frame.network_router)

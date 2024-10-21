@@ -2,17 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 import json
 from popframe.method.popuation_frame import PopulationFrame
 from popframe.models.region import Region
-from app.utils.data_loader import get_region
+from app.utils.data_loader import get_region_model
 from typing import Any, Dict
 
 network_router = APIRouter(prefix="/network", tags=["Network Frame"])
-
-# Dependency to get the region model
-def get_region_model(region_id: int = Query(1, description="Region ID")):
-    region_model = get_region(region_id)
-    if not isinstance(region_model, Region):
-        raise HTTPException(status_code=400, detail="Invalid region model")
-    return region_model
 
 # Network Frame Endpoints
 @network_router.get("/build_network_frame", response_model=Dict[str, Any])

@@ -1,4 +1,5 @@
 import os
+from fastapi import APIRouter, HTTPException, Depends, Query
 from app.utils.get_model import check_model_exists
 from popframe.models.region import Region
 from app.utils.config import REGIONS_DICT, DATA_PATH
@@ -21,3 +22,9 @@ def get_available_regions():
             available_regions[region_id] = region_name
     return available_regions
 
+# Dependency to get the region model
+def get_region_model(region_id: int = Query(1, description="Region ID")):
+    region_model = get_region(region_id)
+    if not isinstance(region_model, Region):
+        raise HTTPException(status_code=400, detail="Invalid region model")
+    return region_model

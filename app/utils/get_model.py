@@ -78,37 +78,71 @@ def to_pickle(data, file_path: str) -> None:
     with open(file_path, "wb") as f:
         pickle.dump(data, f)
 
-async def process_models():
-    for region_id, region_name in REGIONS_DICT.items():
-        logger.info(f"Loading model for {region_name}...")
+async def create_model(region_id: int):
+    """Функция создания модели для указанного региона"""
+    region_name = REGIONS_DICT.get(region_id, f"Region ID {region_id}")
+    logger.info(f"Creating model for {region_name}...")
+
+    local_crs = REGIONS_CRS[region_id]
+
+    try:
+        region = await load_region_bounds(region_id)
+        logger.info(f"Region bounds loaded for {region_name}")
+    except FileNotFoundError as e:
+        logger.error(f"Error loading region bounds for {region_name}: {e}")
+        return
+
+    try:
+        towns = await load_towns(region_id)
+        logger.info(f"Towns loaded for {region_name}")
+    except FileNotFoundError as e:
+        logger.error(f"Error loading towns for {region_name}: {e}")
+        return
+
+    try:
+        adj_mx = await load_accessibility_matrix(region_id, 'drive')
+        logger.info(f"Accessibility matrix loaded for {region_name}")
+    except FileNotFoundError as e:
+        logger.error(f"Error loading accessibility matrix for {region_name}: {e}")
+        return
+
+    try:
+        model = await get_model(region, towns, adj_mx, region_id, local_crs)
+        model_file = os.path.join(DATA_PATH, f'{region_name}.pickle')
+        to_pickle(model, model_file)
+        logger.info(f"Model for {region_name} successfully created and saved.")
+    except RuntimeError as e:
+        logger.error(f"Error creating model for {region_name}: {e}")
+        return
+
+async def process_models(region_id: int = None):
+    # Если передан region_id, то обрабатываем только его
+    if region_id is not None:
+        logger.info(f"Processing model for region ID {region_id}...")
         model_exists, model_file = check_model_exists(region_id)
+
+        # Если модель существует, удаляем её и пересоздаем
         if model_exists:
-            logger.info(f"Model for {region_name} already exists. Skipping.")
-            continue
-        logger.info(f"Model for {region_name} not found. Creating...")
-        local_crs = REGIONS_CRS[region_id]
-        try:
-            region = await load_region_bounds(region_id)
-            logger.info(f"Region bounds loaded for {region_name}")
-        except FileNotFoundError as e:
-            logger.error(f"Error loading region bounds for {region_name}: {e}")
-            continue
-        try:
-            towns = await load_towns(region_id)
-            logger.info(f"Towns loaded for {region_name}")
-        except FileNotFoundError as e:
-            logger.error(f"Error loading towns for {region_name}: {e}")
-            continue
-        try:
-            adj_mx = await load_accessibility_matrix(region_id, 'drive')
-            logger.info(f"Accessibility matrix loaded for {region_name}")
-        except FileNotFoundError as e:
-            logger.error(f"Error loading accessibility matrix for {region_name}: {e}")
-            continue
-        try:
-            model = await get_model(region, towns, adj_mx, region_id, local_crs)
-            to_pickle(model, model_file)
-            logger.info(f"Model for {region_name} successfully created and saved.")
-        except RuntimeError as e:
-            logger.error(f"Error creating model for {region_name}: {e}")
-            continue
+            logger.info(f"Model for region ID {region_id} already exists. Deleting and recreating...")
+            try:
+                os.remove(model_file)
+                logger.info(f"Old model for region ID {region_id} deleted.")
+            except OSError as e:
+                logger.error(f"Error deleting model for region ID {region_id}: {e}")
+                return
+
+        # Создаем новую модель
+        await create_model(region_id)
+    else:
+        # Если region_id не передан, обрабатываем все регионы
+        for region_id, region_name in REGIONS_DICT.items():
+            logger.info(f"Processing model for {region_name}...")
+            model_exists, model_file = check_model_exists(region_id)
+
+            # Если модель существует, пропускаем её
+            if model_exists:
+                logger.info(f"Model for {region_name} already exists. Skipping.")
+                continue
+
+            # Создаем новую модель, если её нет
+            await create_model(region_id)
