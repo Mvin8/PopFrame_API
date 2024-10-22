@@ -53,6 +53,7 @@ async def load_towns(region_id: int) -> gpd.GeoDataFrame:
     last_key, last_value = list(gdfs_dict.items())[-1]
     last_value['geometry'] = last_value['geometry'].representative_point()  
     last_value['population'] = np.random.randint(100, 3000000, size=len(last_value))
+    last_value['id'] = last_value.index
     level_filler = LevelFiller(towns=last_value)
     towns = level_filler.fill_levels()
     return towns
