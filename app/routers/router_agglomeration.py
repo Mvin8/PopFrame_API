@@ -23,7 +23,7 @@ def get_agglomeration_endpoint(region_model: Region = Depends(get_region_model))
 def evaluate_cities_in_agglomeration(region_model: Region = Depends(get_region_model)):
     try:
         frame_method = PopulationFrame(region=region_model)
-        gdf_frame = frame_method.build_circle_frame(output_type='gdf')
+        gdf_frame = frame_method.build_circle_frame()
 
         builder = AgglomerationBuilder(region=region_model)
         agglomeration_gdf = builder.get_agglomerations()
