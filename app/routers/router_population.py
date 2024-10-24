@@ -80,25 +80,34 @@ async def save_population_criterion_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@population_router.post("/get_population_criterion_score", response_model=int)
+@population_router.post("/get_population_criterion_score", response_model=list[float])
 async def get_population_criterion_score_endpoint(
-    polygon: PolygonModel,
+    geojson_data: dict,
     region_model: Region = Depends(get_region_model),
     regional_scenario_id: int | None = Query(None, description="ID сценария региона, если имеется")
 ):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
-        polygon_feature = {
-            'type': 'Feature',
-            'geometry': polygon.model_dump(),
-            'properties': {}
-        }
-        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
+        
+        # Проверяем, что пришел правильный формат данных
+        if geojson_data.get("type") != "FeatureCollection":
+            raise HTTPException(status_code=400, detail="Неверный формат GeoJSON, ожидался FeatureCollection")
+        
+        # Создаем GeoDataFrame из features
+        polygon_gdf = gpd.GeoDataFrame.from_features(geojson_data["features"], crs=4326)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         
+        # Вызываем метод оценки для каждого полигона
+        scores = []
         result = evaluation.population_criterion(territories_gdf=polygon_gdf)
+        
         if result:
-            return int(result[0]['score'])
-        raise HTTPException(status_code=404, detail="Результат не найден")
+            for res in result:
+                scores.append(float(res['score']))  # Преобразуем значение в float и добавляем в список
+            return scores
+        
+        raise HTTPException(status_code=404, detail="Результаты не найдены")
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
