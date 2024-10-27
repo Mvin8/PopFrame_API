@@ -2,24 +2,25 @@ import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.utils.get_model import check_model_exists
 from popframe.models.region import Region
-from app.utils.config import REGIONS_DICT, DATA_PATH
+from app.utils.config import DATA_PATH
 import os 
 
 def _get_region_data_path(region_id: int):
-    region_name = REGIONS_DICT.get(region_id)
-    if not region_name:
+    if not region_id:
         raise ValueError(f"Region ID {region_id} is not recognized.")
-    return os.path.join(DATA_PATH, f'{region_name}.pickle')
+    return os.path.join(DATA_PATH, f'{region_id}.pickle')
 
 def get_region(region_id: int):
     return Region.from_pickle(_get_region_data_path(region_id))
 
-def get_available_regions(): 
+def get_available_regions():
     available_regions = {}
-    for region_id, region_name in REGIONS_DICT.items():
-        model_exists, _ = check_model_exists(region_id)
-        if model_exists:
-            available_regions[region_id] = region_name
+    for file_name in os.listdir(DATA_PATH):
+        if file_name.endswith('.pickle'):
+            region_id = int(file_name.split('.')[0])
+            model_exists, model_file = check_model_exists(region_id)
+            if model_exists:
+                available_regions[region_id] = f"Region {region_id}" 
     return available_regions
 
 # Dependency to get the region model

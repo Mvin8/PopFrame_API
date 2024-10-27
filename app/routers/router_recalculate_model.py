@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 
 from popframe.models.region import Region
 from typing import Any, Dict
-from app.utils.get_model import process_models
+from app.utils.get_model import process_models, create_models
 from app.utils.data_loader import get_available_regions
 from loguru import logger
 
@@ -34,3 +34,8 @@ def recalculate_model_endpoint(
 @region_router.get('/get_available_regions', tags=["Region Model"])
 def get_regions_endpoin() -> Dict[int, str]:
     return get_available_regions()
+
+@region_router.post('/create_regional_models', tags=["Region Model"])
+async def get_models():
+    await create_models() 
+    return {"message": "Regional models created successfully"}
