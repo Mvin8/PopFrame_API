@@ -12,6 +12,16 @@ from popframe.preprocessing.level_filler import LevelFiller
 from popframe.models.region import Region
 from idu_clients import UrbanAPI
 
+URBAN_API = 'http://10.32.1.107:5300'
+POPULATION_COUNT_INDICATOR_ID = 1
+
+async def get_territories_population(territories_gdf : gpd.GeoDataFrame):
+  res = requests.get(f'{URBAN_API}/api/v1/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
+  res_df = pd.DataFrame(res.json())
+  res_df = res_df[res_df['territory_id'].isin(territories_gdf.index)]
+  res_df = res_df.groupby('territory_id').agg({'value': 'last'}).rename(columns={'value':'population'})
+  return territories_gdf[['geometry', 'name']].merge(res_df, left_index=True, right_index=True)
+
 async def load_region_bounds(region_id: int) -> gpd.GeoDataFrame:
     urban_api = UrbanAPI('http://10.32.1.107:5300')
     regions = await urban_api.get_regions()
@@ -48,8 +58,8 @@ async def load_towns(region_id: int) -> gpd.GeoDataFrame:
         raise FileNotFoundError(f"Towns for {region_id} not found.")
     
     last_key, last_value = list(gdfs_dict.items())[-1]
-    last_value['geometry'] = last_value['geometry'].representative_point()  
-    last_value['population'] = np.random.randint(100, 3000000, size=len(last_value))
+    last_value['geometry'] = last_value['geometry'].representative_point() 
+    last_value = get_territories_population(last_value) 
     last_value['id'] = last_value.index
     level_filler = LevelFiller(towns=last_value)
     towns = level_filler.fill_levels()
