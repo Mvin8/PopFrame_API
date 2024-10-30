@@ -14,21 +14,21 @@ from idu_clients import UrbanAPI
 
 URBAN_API = 'http://10.32.1.107:5300'
 POPULATION_COUNT_INDICATOR_ID = 1
+DEFAULT_CRS = 4326
 
-async def get_territories_population(territories_gdf : gpd.GeoDataFrame):
-  res = requests.get(f'{URBAN_API}/api/v1/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
-  res_df = pd.DataFrame(res.json())
-  res_df = res_df[res_df['territory_id'].isin(territories_gdf.index)]
-  res_df = res_df.groupby('territory_id').agg({'value': 'last'}).rename(columns={'value':'population'})
-  return territories_gdf[['geometry', 'name']].merge(res_df, left_index=True, right_index=True)
+def get_territories_population(territories_gdf : gpd.GeoDataFrame):
+    res = requests.get(f'{URBAN_API}/api/v1/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
+    res_df = pd.DataFrame(res.json())
+    res_df = res_df[res_df['territory_id'].isin(territories_gdf.index)]
+    res_df = res_df.groupby('territory_id').agg({'value': 'last'}).rename(columns={'value':'population'})
+    return territories_gdf[['geometry', 'name']].merge(res_df, left_index=True, right_index=True)
 
-async def load_region_bounds(region_id: int) -> gpd.GeoDataFrame:
+async def load_region_bounds(region_id: int = None) -> gpd.GeoDataFrame:
     urban_api = UrbanAPI('http://10.32.1.107:5300')
     regions = await urban_api.get_regions()
     if regions.empty:
         raise FileNotFoundError(f"Region bounds for {region_id} not found.")
-    region = regions.loc[[region_id]]
-    return region
+    return regions
 
 async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.DataFrame:
     res = requests.get('http://10.32.1.65:5700' + f'/api_v1/{region_id}/get_matrix', {
@@ -40,28 +40,26 @@ async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.Dat
         raise FileNotFoundError(f"Matrix for {region_id} not found.")
     return adj_mx
 
-async def get_region_territories(region_id : int) -> dict[int, gpd.GeoDataFrame]:
-    res = requests.get('http://10.32.1.107:5300' + '/api/v1/all_territories', {
-        'parent_id': region_id,
-        'get_all_levels': True
+def get_territories(parent_id : int | None = None, all_levels = False, geometry : bool = False) -> pd.DataFrame | gpd.GeoDataFrame:
+    res = requests.get(URBAN_API + f'/api/v1/all_territories{"" if geometry else "_without_geometry"}', {
+        'parent_id': parent_id,
+        'get_all_levels': all_levels
     })
-    gdf = gpd.GeoDataFrame.from_features(res.json()['features'], crs=4326)
-    df = pd.json_normalize(gdf['territory_type']).rename(columns={
-        'name':'territory_type_name'
-    })
-    gdf = pd.DataFrame.join(gdf, df).set_index('territory_id', drop=True)
-    return {level:gdf[gdf['level'] == level] for level in set(gdf.level)}
+    res_json = res.json()
+    if geometry:
+        gdf = gpd.GeoDataFrame.from_features(res_json, crs=DEFAULT_CRS)
+        return gdf.set_index('territory_id', drop=True)
+    df = pd.DataFrame(res_json)
+    return df.set_index('territory_id', drop=True)
 
-async def load_towns(region_id: int) -> gpd.GeoDataFrame:
-    gdfs_dict = await get_region_territories(region_id)
-    if not gdfs_dict:
-        raise FileNotFoundError(f"Towns for {region_id} not found.")
-    
-    last_key, last_value = list(gdfs_dict.items())[-1]
-    last_value['geometry'] = last_value['geometry'].representative_point() 
-    last_value = get_territories_population(last_value) 
-    last_value['id'] = last_value.index
-    level_filler = LevelFiller(towns=last_value)
+def load_towns(region_id: int) -> gpd.GeoDataFrame:
+    territories_gdf = get_territories(region_id, all_levels = True, geometry=True)
+    territories_gdf['was_point'] = territories_gdf['properties'].apply(lambda p : p['was_point'] if 'was_point' in p else False)
+    towns_gdf = territories_gdf[territories_gdf['was_point']]
+    towns_gdf['geometry'] = towns_gdf['geometry'].representative_point()
+    towns_gdf = get_territories_population(towns_gdf)
+    towns_gdf['id'] = towns_gdf.index
+    level_filler = LevelFiller(towns=towns_gdf)
     towns = level_filler.fill_levels()
     return towns
 
@@ -92,9 +90,6 @@ async def create_models(region_id: int = None):
     except FileNotFoundError as e:
         logger.error("Error loading regions bounds")
         return
-    
-    if region_id is not None:
-        regions = regions.loc[[region_id]] 
 
     for region_id, region in regions.iterrows():
         region = regions.loc[[region_id]]
@@ -102,7 +97,7 @@ async def create_models(region_id: int = None):
         logger.info(f"Creating model for {region_id}...")
 
         try:
-            towns = await load_towns(region_id)
+            towns = load_towns(region_id)
             logger.info(f"Towns loaded for {region_id}")
         except FileNotFoundError as e:
             logger.error(f"Error loading towns for {region_id}: {e}")
