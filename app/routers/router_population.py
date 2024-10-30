@@ -52,7 +52,7 @@ async def process_population_criterion(
 # Population Criterion Endpoint
 @population_router.post("/save_population_criterion")
 async def save_population_criterion_endpoint(
-    polygon: PolygonModel, 
+    polygon: PolygonModel,
     background_tasks: BackgroundTasks,
     region_model: Region = Depends(get_region_model),
     regional_scenario_id: int | None = Query(None, description="ID сценария региона, если имеется"),
@@ -89,21 +89,18 @@ async def get_population_criterion_score_endpoint(
     try:
         evaluation = TerritoryEvaluation(region=region_model)
         
-        # Проверяем, что пришел правильный формат данных
         if geojson_data.get("type") != "FeatureCollection":
             raise HTTPException(status_code=400, detail="Неверный формат GeoJSON, ожидался FeatureCollection")
         
-        # Создаем GeoDataFrame из features
         polygon_gdf = gpd.GeoDataFrame.from_features(geojson_data["features"], crs=4326)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         
-        # Вызываем метод оценки для каждого полигона
         scores = []
         result = evaluation.population_criterion(territories_gdf=polygon_gdf)
         
         if result:
             for res in result:
-                scores.append(float(res['score']))  # Преобразуем значение в float и добавляем в список
+                scores.append(float(res['score']))
             return scores
         
         raise HTTPException(status_code=404, detail="Результаты не найдены")

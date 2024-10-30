@@ -1,10 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import router_territory
-from app.routers import router_population
-from app.routers import router_frame
-from app.routers import router_agglomeration
-from app.routers import router_recalculate_model
+from app.routers import router_territory, router_population, router_frame, router_agglomeration
+from app.routers import router_landuse, router_recalculate_model
 from loguru import logger
 import sys
 
@@ -47,6 +44,7 @@ app.include_router(router_territory.territory_router)
 app.include_router(router_population.population_router)
 app.include_router(router_frame.network_router)
 app.include_router(router_agglomeration.agglomeration_router)
+app.include_router(router_landuse.landuse_router)
 
 if __name__ == "__main__":
     import uvicorn
