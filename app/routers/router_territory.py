@@ -1,20 +1,34 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, Header
 import geopandas as gpd
 from pydantic_geojson import PolygonModel
-
+import requests
+from datetime import datetime
 from popframe.method.territory_evaluation import TerritoryEvaluation
 from popframe.models.region import Region
 from app.utils.data_loader import get_region_model
 from app.models.models import EvaluateTerritoryLocationResult
-# from app.utils.db_operations import save_evaluate_territory_location_result_to_db
+from loguru import logger
+import sys
+import json
+
+BASE_URL = "https://urban-api.idu.kanootoko.org/api/v1"
 
 territory_router = APIRouter(prefix="/territory", tags=["Territory Evaluation"])
 
-# Эндпоинт для выполнения оценки территории без сохранения (возвращает результат)
-@territory_router.post("/evaluate_location", response_model=list[EvaluateTerritoryLocationResult])
+logger.remove() 
+logger.add(
+    sys.stdout,
+    format="<green>{time:MM-DD HH:mm}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+    level="INFO",
+    colorize=True
+)
+
+
+@territory_router.post("/evaluate_location_test", response_model=list[EvaluateTerritoryLocationResult])
 async def evaluate_territory_location_endpoint(
     polygon: PolygonModel, 
-    region_model: Region = Depends(get_region_model)
+    region_model: Region = Depends(get_region_model),
+    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется")
 ):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
@@ -31,43 +45,89 @@ async def evaluate_territory_location_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-async def process_evaluate_territory_location(
+async def process_evaluation(
     region_model: Region,
-    polygon_gdf: gpd.GeoDataFrame
+    project_scenario_id: int,
+    token: str
 ):
     try:
+        # Getting project_id and additional information based on scenario_id
+        scenario_response = requests.get(
+            f"{BASE_URL}/scenarios/{project_scenario_id}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if scenario_response.status_code != 200:
+            raise Exception("Error retrieving scenario information")
+        
+        scenario_data = scenario_response.json()
+        project_id = int(scenario_data.get("project_id"))  # Convert to standard int
+        
+        # Retrieving territory geometry
+        territory_response = requests.get(
+            f"{BASE_URL}/projects/{project_id}/territory_info",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if territory_response.status_code != 200:
+            raise Exception("Error retrieving territory geometry")
+        
+        # Extracting only the polygon geometry
+        territory_data = territory_response.json()
+        territory_geometry = territory_data["geometry"]
+
+        # Converting the territory geometry to GeoDataFrame
+        territory_feature = {
+            'type': 'Feature',
+            'geometry': territory_geometry,
+            'properties': {}
+        }
+        with open('poly.json', 'w') as f:
+            json.dump(territory_feature, f)
+
+        polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=4326)
+        polygon_gdf = polygon_gdf.to_crs(region_model.crs)
+ 
+        # Territory evaluation
         evaluation = TerritoryEvaluation(region=region_model)
         result = evaluation.evaluate_territory_location(territories_gdf=polygon_gdf)
-        
-        # save_evaluate_territory_location_result_to_db(result)
-        
-        print("Territory location evaluation completed and saved to DB.")
+
+        # Saving the evaluation to the database
+        for res in result:
+            indicator_data = {
+                "scenario_id": project_scenario_id,  # Add scenario_id
+                "indicator_id": 195,
+                "date_type": "year",
+                "date_value": datetime.now().strftime("%Y-%m-%d"),
+                "value": float(res['score']),
+                "value_type": "real",
+                "information_source": "modeled"
+            }
+
+            indicators_response = requests.post(
+                f"{BASE_URL}/scenarios/{project_scenario_id}/indicators_values",
+                headers={"Authorization": f"Bearer {token}"},
+                json=indicator_data
+            )
+            if indicators_response.status_code not in (200, 201):  # Successful codes: 200 and 201
+                logger.error(f"Error saving indicators: {indicators_response.status_code}, "
+                             f"Response body: {indicators_response.text}")
+                raise Exception("Error saving indicators")
     except Exception as e:
-        print(f"Error during territory location evaluation processing: {str(e)}")
+        # Log the error
+        logger.error(f"Error in the evaluation process: {e}")
 
 @territory_router.post("/save_evaluate_location")
 async def save_evaluate_location_endpoint(
-    polygon: PolygonModel, 
     background_tasks: BackgroundTasks,
     region_model: Region = Depends(get_region_model),
-    regional_scenario_id: int | None = Query(None, description="ID сценария региона, если имеется"),
-    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется")
+    project_scenario_id: int | None = Query(None, description="Project scenario ID, if available"),
+    token: str = Header(...)
 ):
-    try:
-        polygon_feature = {
-            'type': 'Feature',
-            'geometry': polygon.model_dump(),
-            'properties': {}
-        }
-        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
-        polygon_gdf = polygon_gdf.to_crs(region_model.crs)
-        background_tasks.add_task(
-            process_evaluate_territory_location, 
-            region_model, 
-            polygon_gdf
-        )
-
-        return {"message": "Territory location evaluation started", "status": "processing"}
+    # Add a background task that will be executed after the response is returned
+    background_tasks.add_task(process_evaluation, region_model, project_scenario_id, token)
     
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Instantly return a message indicating that processing has started
+    return {"message": "Population criterion processing started", "status": "processing"}
+
+
+
+
