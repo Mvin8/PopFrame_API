@@ -20,7 +20,6 @@ async def get_landuse_data_endpoint(polygon : PolygonModel, region_model: Region
         'properties': {}
         }
         polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
-        polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         landuse_data = urbanisation.get_landuse_data(territories=polygon_gdf)
         return json.loads(landuse_data.to_json())
     except Exception as e:

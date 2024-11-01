@@ -17,7 +17,7 @@ logger.add(
 app = FastAPI(
     title="PopFrame API",
     description="API for PopFrame service, handling territory evaluation, population criteria, network frame, and land use data.",
-    version="1.0.0",
+    version="2.0.0",
     contact={
         "name": "Maksim Natykin",
         "email": "mvin@itmo.ru",

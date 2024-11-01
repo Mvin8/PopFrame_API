@@ -57,7 +57,7 @@ async def get_population_criterion_score_endpoint(
         
         scores = []
         result = evaluation.population_criterion(territories_gdf=polygon_gdf)
-        
+         
         if result:
             for res in result:
                 scores.append(float(res['score']))
@@ -74,7 +74,6 @@ async def process_population_criterion(
     token: str
 ):
     try:
-        # Получение project_id и информации по scenario_id
         scenario_response = requests.get(
             f"{BASE_URL}/scenarios/{project_scenario_id}",
             headers={"Authorization": f"Bearer {token}"}
@@ -85,7 +84,6 @@ async def process_population_criterion(
         scenario_data = scenario_response.json()
         project_id = int(scenario_data.get("project_id"))
         
-        # Получение геометрии территории
         territory_response = requests.get(
             f"{BASE_URL}/projects/{project_id}/territory_info",
             headers={"Authorization": f"Bearer {token}"}
@@ -93,11 +91,8 @@ async def process_population_criterion(
         if territory_response.status_code != 200:
             raise Exception("Ошибка при получении геометрии территории")
         
-        # Извлечение только геометрии полигона
         territory_data = territory_response.json()
         territory_geometry = territory_data["geometry"]
-
-        # Преобразование геометрии территории в GeoDataFrame
         territory_feature = {
             'type': 'Feature',
             'geometry': territory_geometry,
@@ -106,15 +101,13 @@ async def process_population_criterion(
         polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=4326)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
 
-        # Оценка критерия по населению
         evaluation = TerritoryEvaluation(region=region_model)
         result = evaluation.population_criterion(territories_gdf=polygon_gdf)
 
-        # Сохранение результата в базу данных
         for res in result:
             indicator_data = {
                 "scenario_id": project_scenario_id,
-                "indicator_id": 197,  # Используем 197 для критерия по населению
+                "indicator_id": 197,
                 "date_type": "year",
                 "date_value": datetime.now().strftime("%Y-%m-%d"),
                 "value": float(res['score']),
@@ -142,8 +135,6 @@ async def save_population_criterion_endpoint(
     project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется"),
     token: str = Header(...)
 ):
-    # Добавляем задачу в фон, которая будет выполняться после возвращения ответа
     background_tasks.add_task(process_population_criterion, region_model, project_scenario_id, token)
     
-    # Мгновенно возвращаем сообщение о начале обработки
     return {"message": "Population criterion processing started", "status": "processing"}
