@@ -104,7 +104,7 @@ async def create_models(region_id: int = None):
             return
 
         try:
-            adj_mx = await load_accessibility_matrix(region_id, 'drive')
+            adj_mx = await load_accessibility_matrix(region_id, 'car')
             logger.info(f"Accessibility matrix loaded for {region_id}")
         except FileNotFoundError as e:
             logger.error(f"Error loading accessibility matrix for {region_id}: {e}")
