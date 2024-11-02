@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      - APP_NAME=townsnet_api
+      - APP_NAME=popframe_api
       - APP_VERSION=dev
     volumes:
       - ./app:/app/app
