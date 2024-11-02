@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks, Request
 import requests
 import geopandas as gpd
 from datetime import datetime
@@ -131,10 +131,15 @@ async def process_population_criterion(
 @population_router.post("/save_population_criterion")
 async def save_population_criterion_endpoint(
     background_tasks: BackgroundTasks,
+    request: Request,
     region_model: Region = Depends(get_region_model),
-    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется"),
-    token: str = Header(...)
+    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется")
 ):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+    
+    token = auth_header.split(" ")[1]
     background_tasks.add_task(process_population_criterion, region_model, project_scenario_id, token)
     
     return {"message": "Population criterion processing started", "status": "processing"}

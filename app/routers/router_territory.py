@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, Header
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, Header,  Request
 import geopandas as gpd
 from pydantic_geojson import PolygonModel
 import requests
@@ -118,10 +118,15 @@ async def process_evaluation(
 @territory_router.post("/save_evaluate_location")
 async def save_evaluate_location_endpoint(
     background_tasks: BackgroundTasks,
+    request: Request,
     region_model: Region = Depends(get_region_model),
     project_scenario_id: int | None = Query(None, description="Project scenario ID, if available"),
-    token: str = Header(...)
 ):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+    
+    token = auth_header.split(" ")[1]
     # Add a background task that will be executed after the response is returned
     background_tasks.add_task(process_evaluation, region_model, project_scenario_id, token)
     
