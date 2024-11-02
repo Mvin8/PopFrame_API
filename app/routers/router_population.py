@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic_geojson import PolygonModel
 from loguru import logger
 import sys
+import os
 from popframe.method.territory_evaluation import TerritoryEvaluation
 from popframe.models.region import Region
 from app.utils.data_loader import get_region_model
@@ -20,8 +21,8 @@ logger.add(
     colorize=True
 )
 
+BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300'
 
-BASE_URL = "'http://10.32.1.107:5300'/api/v1"
 
 # Population Criterion Endpoints
 @population_router.post("/test_population_criterion", response_model=list[PopulationCriterionResult])

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, H
 import geopandas as gpd
 from pydantic_geojson import PolygonModel
 import requests
+import os
 from datetime import datetime
 from popframe.method.territory_evaluation import TerritoryEvaluation
 from popframe.models.region import Region
@@ -11,7 +12,8 @@ from loguru import logger
 import sys
 import json
 
-BASE_URL = "'http://10.32.1.107:5300'/api/v1"
+
+BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300'
 
 territory_router = APIRouter(prefix="/territory", tags=["Territory Evaluation"])
 
