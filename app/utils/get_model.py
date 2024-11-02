@@ -85,8 +85,12 @@ def to_pickle(data, file_path: str) -> None:
 async def create_models(region_id: int = None):
 
     try:
-        regions = await load_region_bounds(region_id) if region_id is not None else await load_region_bounds()
-        logger.info("Regions bounds loaded")
+        if region_id is not None:
+            regions = await load_region_bounds(region_id)
+            regions = regions.loc[[region_id]]
+            logger.info("Regions bounds loaded")
+        else:
+            regions = await load_region_bounds()
     except FileNotFoundError as e:
         logger.error("Error loading regions bounds")
         return

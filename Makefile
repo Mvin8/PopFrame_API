@@ -15,3 +15,7 @@ venv: #then source .venv/bin/activate
 
 compose-dev:
 	docker compose -f "docker-compose.dev.yml" up --build
+
+update-pf:
+	pip uninstall popframe
+	pip install -r requirements.txt
