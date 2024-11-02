@@ -21,7 +21,7 @@ logger.add(
 )
 
 
-BASE_URL = "https://urban-api.idu.kanootoko.org/api/v1"
+BASE_URL = "'http://10.32.1.107:5300'/api/v1"
 
 # Population Criterion Endpoints
 @population_router.post("/test_population_criterion", response_model=list[PopulationCriterionResult])

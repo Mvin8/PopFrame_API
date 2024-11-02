@@ -11,7 +11,7 @@ from loguru import logger
 import sys
 import json
 
-BASE_URL = "https://urban-api.idu.kanootoko.org/api/v1"
+BASE_URL = "'http://10.32.1.107:5300'/api/v1"
 
 territory_router = APIRouter(prefix="/territory", tags=["Territory Evaluation"])
 
