@@ -12,8 +12,7 @@ from loguru import logger
 import sys
 import json
 
-
-BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300'
+BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
 
 territory_router = APIRouter(prefix="/territory", tags=["Territory Evaluation"])
 
@@ -24,7 +23,6 @@ logger.add(
     level="INFO",
     colorize=True
 )
-
 
 @territory_router.post("/evaluate_location_test", response_model=list[EvaluateTerritoryLocationResult])
 async def evaluate_territory_location_endpoint(
@@ -66,7 +64,7 @@ async def process_evaluation(
         
         # Retrieving territory geometry
         territory_response = requests.get(
-            f"{BASE_URL}/projects/{project_id}/territory_info",
+            f"{BASE_URL}/projects/{project_id}/territory",
             headers={"Authorization": f"Bearer {token}"}
         )
         if territory_response.status_code != 200:
@@ -82,8 +80,8 @@ async def process_evaluation(
             'geometry': territory_geometry,
             'properties': {}
         }
-        with open('poly.json', 'w') as f:
-            json.dump(territory_feature, f)
+        # with open('poly.json', 'w') as f:
+        #     json.dump(territory_feature, f)
 
         polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=4326)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)

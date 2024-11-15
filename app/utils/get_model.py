@@ -10,24 +10,41 @@ from app.utils.config import DATA_PATH
 
 from popframe.preprocessing.level_filler import LevelFiller
 from popframe.models.region import Region
-from idu_clients import UrbanAPI
 
-URBAN_API = 'http://10.32.1.107:5300'
+URBAN_API = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
 POPULATION_COUNT_INDICATOR_ID = 1
 DEFAULT_CRS = 4326
 
 def get_territories_population(territories_gdf : gpd.GeoDataFrame):
-    res = requests.get(f'{URBAN_API}/api/v1/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
+    res = requests.get(f'{URBAN_API}/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
     res_df = pd.DataFrame(res.json())
-    res_df = res_df[res_df['territory_id'].isin(territories_gdf.index)]
-    res_df = res_df.groupby('territory_id').agg({'value': 'last'}).rename(columns={'value':'population'})
+    res_df = res_df[res_df['territory'].apply(lambda x: x['id'] if isinstance(x, dict) else None).isin(territories_gdf.index)]
+    res_df = (
+        res_df
+        .groupby(res_df['territory'].apply(lambda x: x['id'] if isinstance(x, dict) else None))
+        .agg({'value': 'last'})
+        .rename(columns={'value': 'population'})
+    )
     return territories_gdf[['geometry', 'name']].merge(res_df, left_index=True, right_index=True)
 
-async def load_region_bounds(region_id: int = None) -> gpd.GeoDataFrame:
-    urban_api = UrbanAPI('http://10.32.1.107:5300')
-    regions = await urban_api.get_regions()
-    if regions.empty:
-        raise FileNotFoundError(f"Region bounds for {region_id} not found.")
+async def get_country_regions(country_id : int) -> pd.DataFrame:
+    res = requests.get(f'{URBAN_API}/all_territories', {
+        'parent_id':country_id
+    })
+    return gpd.GeoDataFrame.from_features(res.json()['features'], crs=DEFAULT_CRS).set_index('territory_id', drop=True)
+
+async def get_countries_without_geometry() -> pd.DataFrame:
+    res = requests.get(f'{URBAN_API}/all_territories_without_geometry')
+    return pd.DataFrame(res.json()).set_index('territory_id', drop=True)
+
+async def get_regions():
+    countries = await get_countries_without_geometry()
+    countries_ids = countries.index
+    countries_regions = [await get_country_regions(country_id) for country_id in countries_ids]
+    return pd.concat(countries_regions)
+
+async def load_region_bounds() -> gpd.GeoDataFrame:
+    regions = await get_regions()
     return regions
 
 async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.DataFrame:
@@ -41,7 +58,7 @@ async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.Dat
     return adj_mx
 
 def get_territories(parent_id : int | None = None, all_levels = False, geometry : bool = False) -> pd.DataFrame | gpd.GeoDataFrame:
-    res = requests.get(URBAN_API + f'/api/v1/all_territories{"" if geometry else "_without_geometry"}', {
+    res = requests.get(f'{URBAN_API}/all_territories{"" if geometry else "_without_geometry"}', {
         'parent_id': parent_id,
         'get_all_levels': all_levels
     })
@@ -54,8 +71,7 @@ def get_territories(parent_id : int | None = None, all_levels = False, geometry 
 
 def load_towns(region_id: int) -> gpd.GeoDataFrame:
     territories_gdf = get_territories(region_id, all_levels = True, geometry=True)
-    territories_gdf['was_point'] = territories_gdf['properties'].apply(lambda p : p['was_point'] if 'was_point' in p else False)
-    towns_gdf = territories_gdf[territories_gdf['was_point']]
+    towns_gdf = territories_gdf[territories_gdf['is_city'] == True]
     towns_gdf['geometry'] = towns_gdf['geometry'].representative_point()
     towns_gdf = get_territories_population(towns_gdf)
     towns_gdf['id'] = towns_gdf.index
@@ -83,10 +99,9 @@ def to_pickle(data, file_path: str) -> None:
         pickle.dump(data, f)
 
 async def create_models(region_id: int = None):
-
     try:
         if region_id is not None:
-            regions = await load_region_bounds(region_id)
+            regions = await load_region_bounds()
             regions = regions.loc[[region_id]]
             logger.info("Regions bounds loaded")
         else:

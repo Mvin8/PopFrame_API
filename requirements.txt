@@ -4,4 +4,3 @@ pydantic-geojson==0.1.1
 retrying==1.3.4
 loguru
 git+https://github.com/Mvin8/PopFrame.git@feat/api
-git+https://github.com/vasilstar97/idu-clients.git@main

@@ -20,8 +20,7 @@ logger.add(
     level="INFO",
     colorize=True
 )
-
-BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300'
+BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
 
 
 # Population Criterion Endpoints
