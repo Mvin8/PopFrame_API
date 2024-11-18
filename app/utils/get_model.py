@@ -48,7 +48,7 @@ async def load_region_bounds() -> gpd.GeoDataFrame:
     return regions
 
 async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.DataFrame:
-    res = requests.get('http://10.32.1.65:5700' + f'/api_v1/{region_id}/get_matrix', {
+    res = requests.get('http://10.32.1.65:5700' + f'/{region_id}/get_matrix', {
         'graph_type': graph_type
     })
     json = res.json()
