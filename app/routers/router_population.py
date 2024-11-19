@@ -10,6 +10,7 @@ from popframe.method.territory_evaluation import TerritoryEvaluation
 from popframe.models.region import Region
 from app.utils.data_loader import get_region_model
 from app.models.models import PopulationCriterionResult
+from app.utils.auth import verify_token 
 
 population_router = APIRouter(prefix="/population", tags=["Population Criterion"])
 
@@ -25,7 +26,7 @@ BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.
 
 # Population Criterion Endpoints
 @population_router.post("/test_population_criterion", response_model=list[PopulationCriterionResult])
-async def test_population_criterion_endpoint(polygon: PolygonModel, region_model: Region = Depends(get_region_model)):
+async def test_population_criterion_endpoint(polygon: PolygonModel, region_model: Region = Depends(get_region_model), token: str = Depends(verify_token)):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
         polygon_feature = {
@@ -44,7 +45,8 @@ async def test_population_criterion_endpoint(polygon: PolygonModel, region_model
 async def get_population_criterion_score_endpoint(
     geojson_data: dict,
     region_model: Region = Depends(get_region_model),
-    regional_scenario_id: int | None = Query(None, description="ID сценария региона, если имеется")
+    regional_scenario_id: int | None = Query(None, description="ID сценария региона, если имеется"),
+    token: str = Depends(verify_token)
 ):
     try:
         evaluation = TerritoryEvaluation(region=region_model)
@@ -82,10 +84,12 @@ async def process_population_criterion(
             raise Exception("Ошибка при получении информации по сценарию")
         
         scenario_data = scenario_response.json()
-        project_id = int(scenario_data.get("project_id"))
+        project_id = scenario_data.get("project", {}).get("project_id")
+        if project_id is None:
+            raise Exception("Project ID is missing in scenario data.")
         
         territory_response = requests.get(
-            f"{BASE_URL}/projects/{project_id}/territory_info",
+            f"{BASE_URL}/projects/{project_id}/territory",
             headers={"Authorization": f"Bearer {token}"}
         )
         if territory_response.status_code != 200:
@@ -106,17 +110,17 @@ async def process_population_criterion(
 
         for res in result:
             indicator_data = {
-                "scenario_id": project_scenario_id,
                 "indicator_id": 197,
-                "date_type": "year",
-                "date_value": datetime.now().strftime("%Y-%m-%d"),
+                "scenario_id": project_scenario_id,
+                "territory_id": None,
+                "hexagon_id": None,
                 "value": float(res['score']),
-                "value_type": "real",
-                "information_source": "modeled"
+                "comment": res['interpretation'],
+                "information_source": "modeled PopFrame"
             }
 
             indicators_response = requests.post(
-                f"{BASE_URL}/scenarios/{project_scenario_id}/indicators_values",
+                f"{BASE_URL}/scenarios/indicators_values",
                 headers={"Authorization": f"Bearer {token}"},
                 json=indicator_data
             )
@@ -131,15 +135,11 @@ async def process_population_criterion(
 @population_router.post("/save_population_criterion")
 async def save_population_criterion_endpoint(
     background_tasks: BackgroundTasks,
-    request: Request,
     region_model: Region = Depends(get_region_model),
-    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется")
-):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+    project_scenario_id: int | None = Query(None, description="ID сценария проекта, если имеется"),
+    token: str = Depends(verify_token)
+    ):
     
-    token = auth_header.split(" ")[1]
     background_tasks.add_task(process_population_criterion, region_model, project_scenario_id, token)
     
     return {"message": "Population criterion processing started", "status": "processing"}
