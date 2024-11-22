@@ -12,8 +12,7 @@ from loguru import logger
 import sys
 import json
 from app.utils.auth import verify_token 
-
-BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
+from app.utils.config import DEFAULT_CRS, URBAN_API
 
 territory_router = APIRouter(prefix="/territory", tags=["Territory Evaluation"])
 
@@ -39,7 +38,7 @@ async def evaluate_territory_location_endpoint(
             'geometry': polygon.model_dump(),
             'properties': {}
         }
-        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=DEFAULT_CRS)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         result = evaluation.evaluate_territory_location(territories_gdf=polygon_gdf)
         return result
@@ -55,7 +54,7 @@ async def process_evaluation(
     try:
         # Getting project_id and additional information based on scenario_id
         scenario_response = requests.get(
-            f"{BASE_URL}/scenarios/{project_scenario_id}",
+            f"{URBAN_API}/scenarios/{project_scenario_id}",
             headers={"Authorization": f"Bearer {token}"}
         )
         if scenario_response.status_code != 200:
@@ -68,7 +67,7 @@ async def process_evaluation(
         
         # Retrieving territory geometry
         territory_response = requests.get(
-            f"{BASE_URL}/projects/{project_id}/territory",
+            f"{URBAN_API}/projects/{project_id}/territory",
             headers={"Authorization": f"Bearer {token}"}
         )
         if territory_response.status_code != 200:
@@ -84,7 +83,7 @@ async def process_evaluation(
             'geometry': territory_geometry,
             'properties': {}
         }
-        polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=DEFAULT_CRS)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
  
         # Territory evaluation
@@ -112,7 +111,7 @@ async def process_evaluation(
             }
 
             indicators_response = requests.post(
-                f"{BASE_URL}/scenarios/indicators_values",
+                f"{URBAN_API}/scenarios/indicators_values",
                 headers={"Authorization": f"Bearer {token}"},
                 json=indicator_data
             )
@@ -135,6 +134,3 @@ async def save_evaluate_location_endpoint(
     background_tasks.add_task(process_evaluation, region_model, project_scenario_id, token)
     
     return {"message": "Population criterion processing started", "status": "processing"}
-
-
-

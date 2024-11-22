@@ -6,14 +6,10 @@ import numpy as np
 import pickle
 from loguru import logger
 
-from app.utils.config import DATA_PATH
+from app.utils.config import DEFAULT_CRS, TRANSPORT_FRAMES_API, URBAN_API, DATA_PATH, POPULATION_COUNT_INDICATOR_ID
 
 from popframe.preprocessing.level_filler import LevelFiller
 from popframe.models.region import Region
-
-URBAN_API = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
-POPULATION_COUNT_INDICATOR_ID = 1
-DEFAULT_CRS = 4326
 
 def get_territories_population(territories_gdf : gpd.GeoDataFrame):
     res = requests.get(f'{URBAN_API}/indicator/{POPULATION_COUNT_INDICATOR_ID}/values')
@@ -48,7 +44,7 @@ async def load_region_bounds() -> gpd.GeoDataFrame:
     return regions
 
 async def load_accessibility_matrix(region_id : int, graph_type : str) -> pd.DataFrame:
-    res = requests.get('http://10.32.1.65:5700' + f'/{region_id}/get_matrix', {
+    res = requests.get(f'{TRANSPORT_FRAMES_API}/{region_id}/get_matrix', {
         'graph_type': graph_type
     })
     json = res.json()

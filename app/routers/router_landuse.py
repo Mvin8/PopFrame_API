@@ -6,7 +6,7 @@ from typing import Any, Dict
 from popframe.method.landuse_assessment import LandUseAssessment
 from popframe.models.region import Region
 from app.utils.data_loader import get_region_model
-
+from app.utils.config import DEFAULT_CRS
 landuse_router = APIRouter(prefix="/landuse", tags=["Landuse data"])
 
 # Land Use Data Endpoints
@@ -19,7 +19,7 @@ async def get_landuse_data_endpoint(polygon : PolygonModel, region_model: Region
         'geometry' : polygon.model_dump(),
         'properties': {}
         }
-        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=DEFAULT_CRS)
         landuse_data = urbanisation.get_landuse_data(territories=polygon_gdf)
         return json.loads(landuse_data.to_json())
     except Exception as e:

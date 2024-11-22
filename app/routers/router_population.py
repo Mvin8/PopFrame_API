@@ -10,7 +10,8 @@ from popframe.method.territory_evaluation import TerritoryEvaluation
 from popframe.models.region import Region
 from app.utils.data_loader import get_region_model
 from app.models.models import PopulationCriterionResult
-from app.utils.auth import verify_token 
+from app.utils.auth import verify_token
+from app.utils.config import DEFAULT_CRS, URBAN_API
 
 population_router = APIRouter(prefix="/population", tags=["Population Criterion"])
 
@@ -21,8 +22,6 @@ logger.add(
     level="INFO",
     colorize=True
 )
-BASE_URL = os.environ['URBAN_API'] if 'URBAN_API' in os.environ else 'http://10.32.1.107:5300/api/v1'
-
 
 # Population Criterion Endpoints
 @population_router.post("/test_population_criterion", response_model=list[PopulationCriterionResult])
@@ -34,7 +33,7 @@ async def test_population_criterion_endpoint(polygon: PolygonModel, region_model
             'geometry': polygon.model_dump(),
             'properties': {}
         }
-        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features([polygon_feature], crs=DEFAULT_CRS)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         result = evaluation.population_criterion(territories_gdf=polygon_gdf)
         return result
@@ -54,7 +53,7 @@ async def get_population_criterion_score_endpoint(
         if geojson_data.get("type") != "FeatureCollection":
             raise HTTPException(status_code=400, detail="Неверный формат GeoJSON, ожидался FeatureCollection")
         
-        polygon_gdf = gpd.GeoDataFrame.from_features(geojson_data["features"], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features(geojson_data["features"], crs=DEFAULT_CRS)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
         
         scores = []
@@ -77,7 +76,7 @@ async def process_population_criterion(
 ):
     try:
         scenario_response = requests.get(
-            f"{BASE_URL}/scenarios/{project_scenario_id}",
+            f"{URBAN_API}/scenarios/{project_scenario_id}",
             headers={"Authorization": f"Bearer {token}"}
         )
         if scenario_response.status_code != 200:
@@ -89,7 +88,7 @@ async def process_population_criterion(
             raise Exception("Project ID is missing in scenario data.")
         
         territory_response = requests.get(
-            f"{BASE_URL}/projects/{project_id}/territory",
+            f"{URBAN_API}/projects/{project_id}/territory",
             headers={"Authorization": f"Bearer {token}"}
         )
         if territory_response.status_code != 200:
@@ -102,7 +101,7 @@ async def process_population_criterion(
             'geometry': territory_geometry,
             'properties': {}
         }
-        polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=4326)
+        polygon_gdf = gpd.GeoDataFrame.from_features([territory_feature], crs=DEFAULT_CRS)
         polygon_gdf = polygon_gdf.to_crs(region_model.crs)
 
         evaluation = TerritoryEvaluation(region=region_model)
@@ -120,7 +119,7 @@ async def process_population_criterion(
             }
 
             indicators_response = requests.post(
-                f"{BASE_URL}/scenarios/indicators_values",
+                f"{URBAN_API}/scenarios/indicators_values",
                 headers={"Authorization": f"Bearer {token}"},
                 json=indicator_data
             )
