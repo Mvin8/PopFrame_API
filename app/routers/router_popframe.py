@@ -81,10 +81,13 @@ async def process_combined_evaluation(
                 "hexagon_id": None,
                 "value": float(res['score']),
                 "comment": interpretation,
-                "information_source": "modeled PopFrame"
+                "information_source": "modeled PopFrame",
+                "properties": {
+                "attribute_name": "Оценка по каркасу расселения"
+            }
             }
 
-            indicators_response = requests.post(
+            indicators_response = requests.put(
                 f"{URBAN_API}/scenarios/indicators_values",
                 headers={"Authorization": f"Bearer {token}"},
                 json=indicator_data
@@ -104,10 +107,13 @@ async def process_combined_evaluation(
                 "hexagon_id": None,
                 "value": float(res['score']),
                 "comment": res['interpretation'],
-                "information_source": "modeled PopFrame"
+                "information_source": "modeled PopFrame",
+                "properties": {
+                "attribute_name": "Население"
+            }
             }
 
-            indicators_response = requests.post(
+            indicators_response = requests.put(
                 f"{URBAN_API}/scenarios/indicators_values",
                 headers={"Authorization": f"Bearer {token}"},
                 json=indicator_data
@@ -120,7 +126,7 @@ async def process_combined_evaluation(
     except Exception as e:
         logger.error(f"Ошибка при комбинированной обработке: {e}")
 
-@popframe_router.post("/save_popframe_evaluation")
+@popframe_router.put("/save_popframe_evaluation")
 async def save_popframe_evaluation_endpoint(
     background_tasks: BackgroundTasks,
     region_model: Region = Depends(get_region_model),
